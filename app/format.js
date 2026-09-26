@@ -28,7 +28,7 @@
     box.append(head);
     if (pct) {
       const bar = el('div', 'bar'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuenow', String(data.usedPercent)); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100');
-      const fill = el('div', `barFill${data.usedPercent >= 90 ? ' critical' : data.usedPercent >= 75 ? ' high' : ''}`); fill.style.width = `${data.usedPercent}%`; bar.append(fill); box.append(bar);
+      const fill = el('div', `barFill${data.usedPercent >= 95 ? ' critical' : data.usedPercent >= 80 ? ' high' : ''}`); fill.style.width = `${data.usedPercent}%`; bar.append(fill); box.append(bar);
     }
     if (data?.resetsAt) box.append(el('div', 'reset', `↻ ${dateLabel(data.resetsAt)} 초기화`));
     else if (data?.resetText) box.append(el('div', 'reset', `↻ ${data.resetText}`));

@@ -17,7 +17,10 @@
     if (weekly.length) weekly.forEach(w => card.append(windowRow('weekly', w)));
     else card.append(windowRow('weekly', null));
     const foot = el('div', 'cardFoot');
-    foot.append(el('span', 'checked', snapshot ? `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}` : '아직 읽은 기록 없음'));
+    const checked = el('span', 'checked');
+    if (snapshot) checked.append(el('span', 'source', '공식 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
+    else checked.textContent = '아직 읽은 기록 없음';
+    foot.append(checked);
     const actions = el('div', 'actions');
     const open = el('button', 'linkButton', '공식 화면 열기 ↗'); open.type = 'button'; open.onclick = () => invoke(() => window.usageSee.openProvider(provider));
     const read = el('button', 'readButton', '현재 화면 읽기'); read.type = 'button'; read.onclick = () => readProvider(provider);

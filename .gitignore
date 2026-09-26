@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 *.log
+usage-mac/.build/
+usage-mac/build/
+usage-mac/.claude/
