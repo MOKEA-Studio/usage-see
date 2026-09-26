@@ -1,7 +1,7 @@
 'use strict';
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session } = require('electron');
-const { providerForUrl, parseUsage } = require('../src/parser');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, clipboard } = require('electron');
+const { parseUsage } = require('../src/parser');
 const { PROVIDERS, loadState, saveState, setConnected } = require('./state');
 
 const URLS = {
@@ -9,13 +9,7 @@ const URLS = {
   gemini: 'https://gemini.google.com/',
   codex: 'https://chatgpt.com/codex/settings/usage'
 };
-const READ_VISIBLE_TEXT = `(() => {
-  const dialog = [...document.querySelectorAll('[role="dialog"]')].find(el => el.getClientRects().length && /usage|사용량|limit/i.test(el.innerText || ''));
-  const scope = dialog || document.querySelector('main') || document.body;
-  return (scope?.innerText || '').slice(0, 100000);
-})()`;
 let mainWindow, widgetWindow, tray, state, statePath;
-const providerWindows = new Map();
 
 function broadcast() {
   saveState(statePath, state);
@@ -63,21 +57,10 @@ function createTray() {
   tray.on('double-click', createMainWindow);
   updateTray();
 }
-function providerWindow(provider) {
+async function openProvider(provider) {
   if (!PROVIDERS.includes(provider)) throw new Error('지원하지 않는 서비스입니다.');
-  let win = providerWindows.get(provider);
-  if (win && !win.isDestroyed()) { win.show(); win.focus(); return win; }
-  win = new BrowserWindow({ title: `${provider[0].toUpperCase()}${provider.slice(1)} 사용량`, width: 1100, height: 800, minWidth: 750, minHeight: 550,
-    webPreferences: { partition: `usage-see-${provider}`, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
-  win.webContents.setWindowOpenHandler(details => {
-    try { return new URL(details.url).protocol === 'https:' ? { action: 'allow', overrideBrowserWindowOptions: { webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, partition: `usage-see-${provider}` } } } : { action: 'deny' }; }
-    catch { return { action: 'deny' }; }
-  });
-  win.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('https://')) event.preventDefault(); });
-  win.on('closed', () => providerWindows.delete(provider));
-  providerWindows.set(provider, win);
-  win.loadURL(URLS[provider]);
-  return win;
+  await shell.openExternal(URLS[provider]);
+  return true;
 }
 function markFailure(provider, status) {
   state.failures[provider] = { status, at: new Date().toISOString() };
@@ -86,16 +69,13 @@ function markFailure(provider, status) {
 }
 async function readProvider(provider) {
   if (!state.connectedProviders.includes(provider)) throw new Error('서비스를 먼저 연결해 주세요.');
-  const win = providerWindows.get(provider);
-  if (!win || win.isDestroyed()) return markFailure(provider, 'parse_error');
-  const url = win.webContents.getURL();
-  if (providerForUrl(url) !== provider) return markFailure(provider, 'login_required');
-  if (provider === 'codex' && !/usage|analytics/i.test(new URL(url).pathname + new URL(url).hash)) return markFailure(provider, 'parse_error');
+  const text = clipboard.readText().slice(0, 100000);
+  if (!text.trim()) return markFailure(provider, 'clipboard_empty');
   try {
-    const text = await win.webContents.executeJavaScriptInIsolatedWorld(999, [{ code: READ_VISIBLE_TEXT }]);
-    if (win.webContents.getURL() !== url) return markFailure(provider, 'parse_error');
-    const snapshot = parseUsage(provider, text, url);
+    const snapshot = parseUsage(provider, text, URLS[provider]);
     if (snapshot.status === 'login_required' || snapshot.status === 'parse_error') return markFailure(provider, snapshot.status);
+    snapshot.captureMethod = 'clipboard';
+    snapshot.sourceUrl = null; // 복사한 텍스트의 실제 탭 주소는 확인할 수 없다.
     state.snapshots[provider] = snapshot;
     delete state.failures[provider];
     broadcast();
@@ -106,19 +86,14 @@ async function readProvider(provider) {
 app.whenReady().then(() => {
   statePath = path.join(app.getPath('userData'), 'state.json');
   state = loadState(statePath);
-  for (const provider of PROVIDERS) session.fromPartition(`usage-see-${provider}`).setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   ipcMain.handle('state:get', () => state);
   ipcMain.handle('provider:connect', async (_event, provider, connected) => {
+    if (!PROVIDERS.includes(provider)) throw new Error('지원하지 않는 서비스입니다.');
+    if (connected) await openProvider(provider);
     setConnected(state, provider, !!connected);
-    if (connected) providerWindow(provider);
-    else {
-      const win = providerWindows.get(provider);
-      if (win && !win.isDestroyed()) win.close();
-      await session.fromPartition(`usage-see-${provider}`).clearStorageData();
-    }
     broadcast(); return state;
   });
-  ipcMain.handle('provider:open', (_event, provider) => { providerWindow(provider); return true; });
+  ipcMain.handle('provider:open', (_event, provider) => openProvider(provider));
   ipcMain.handle('provider:read', (_event, provider) => readProvider(provider));
   ipcMain.handle('history:clear', () => { state.snapshots = {}; state.failures = {}; broadcast(); return state; });
   ipcMain.handle('widget:visible', (_event, visible) => setWidgetVisible(visible));

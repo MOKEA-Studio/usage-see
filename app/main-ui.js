@@ -18,12 +18,12 @@
     else card.append(windowRow('weekly', null));
     const foot = el('div', 'cardFoot');
     const checked = el('span', 'checked');
-    if (snapshot) checked.append(el('span', 'source', '공식 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
+    if (snapshot) checked.append(el('span', 'source', '복사한 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
     else checked.textContent = '아직 읽은 기록 없음';
     foot.append(checked);
     const actions = el('div', 'actions');
-    const open = el('button', 'linkButton', '공식 화면 열기 ↗'); open.type = 'button'; open.onclick = () => invoke(() => window.usageSee.openProvider(provider));
-    const read = el('button', 'readButton', '현재 화면 읽기'); read.type = 'button'; read.onclick = () => readProvider(provider);
+    const open = el('button', 'linkButton', '브라우저에서 열기 ↗'); open.type = 'button'; open.onclick = () => invoke(() => window.usageSee.openProvider(provider));
+    const read = el('button', 'readButton', '복사한 내용 읽기'); read.type = 'button'; read.onclick = () => readProvider(provider);
     actions.append(open, read); foot.append(actions); card.append(foot); return card;
   }
   function renderDashboard() {
@@ -55,7 +55,7 @@
   async function readProvider(provider) {
     try {
       const result = await window.usageSee.readProvider(provider);
-      if (!result.ok) notice(result.status === 'login_required' ? '서비스 창에서 로그인한 뒤 사용량 화면을 열어 주세요.' : '값을 찾지 못했습니다. 서비스 창에서 공식 사용량 화면이 열린 상태인지 확인해 주세요.');
+      if (!result.ok) notice(result.status === 'clipboard_empty' ? '브라우저의 사용량 화면에서 텍스트를 선택해 복사한 뒤 다시 눌러 주세요.' : result.status === 'login_required' ? '브라우저에서 로그인한 뒤 사용량 영역을 복사해 주세요.' : '복사한 내용에서 사용량을 찾지 못했습니다. 해당 서비스의 사용량 영역을 다시 복사해 주세요.');
       else hideNotice();
     } catch (e) { notice(e.message || '화면을 읽지 못했습니다.'); }
   }

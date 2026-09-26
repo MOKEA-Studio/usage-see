@@ -12,7 +12,8 @@
   function stale(snapshot, failure, now = Date.now()) { const d = date(snapshot?.capturedAt); return !!snapshot && (!d || now - d.getTime() > MAX_AGE || !!failure || snapshot.windows?.some(w => w.resetsAt && date(w.resetsAt)?.getTime() <= now)); }
   function status(snapshot, failure) {
     if (failure?.status === 'login_required') return ['로그인 필요', 'error'];
-    if (failure) return ['페이지 변경', 'error'];
+    if (failure?.status === 'clipboard_empty') return ['복사 필요', 'warn'];
+    if (failure) return ['읽기 실패', 'error'];
     if (!snapshot) return ['확인 필요', 'warn'];
     if (stale(snapshot, failure)) return ['오래된 정보', 'warn'];
     if (snapshot.status === 'partial') return ['값 일부 없음', 'warn'];

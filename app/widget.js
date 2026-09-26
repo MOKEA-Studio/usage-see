@@ -30,7 +30,7 @@
       else rows.append(makeRow('1주', null));
       card.append(rows);
       const checked = el('div', 'checked');
-      if (snapshot) checked.append(el('span', 'source', '공식 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
+      if (snapshot) checked.append(el('span', 'source', '복사한 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
       else checked.textContent = '아직 읽은 기록 없음';
       card.append(checked);
       items.append(card);

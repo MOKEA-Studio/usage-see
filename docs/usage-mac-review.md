@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 좁은 서비스 카드와 5시간·주간 두 줄 | `UI/WidgetView.swift`의 `ProviderCard`, `SlotRow` | 대시보드와 위젯의 카드 |
 | 얇은 진행 막대, 80%·95% 경고색 | `UI/WidgetView.swift`의 `UsageBar` | 대시보드와 위젯의 사용률 막대 |
-| 마지막 확인 시각과 출처 표시 | `UI/WidgetView.swift`의 `WidgetView`, `Badge` | 위젯 상단과 카드 하단 |
+| 마지막 확인 시각과 출처 표시 | `UI/WidgetView.swift`의 `WidgetView`, `Badge` | 위젯 상단과 카드 하단. 출처는 `복사한 화면`으로 표기 |
 | 초기화 시각을 값 옆에 보여주기 | `UI/WidgetView.swift`의 `MeterLine` | 위젯의 각 사용량 줄 |
 | 값을 모르면 0으로 채우지 않기 | `Domain/Models.swift`의 `QuotaSnapshot` | 기존 `확인 필요` 상태 유지 |
 
