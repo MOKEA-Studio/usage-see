@@ -148,7 +148,7 @@ app.whenReady().then(() => {
     try {
       for (const provider of ['codex', 'claude']) {
         if (!state.connectedProviders.includes(provider)) continue;
-        if (!await cli.authenticated(provider)) { setConnected(state, provider, false); broadcast(); continue; }
+        if (!await cli.authenticated(provider)) { markFailure(provider, 'login_required'); continue; }
         if (provider === 'claude') { try { cli.installClaudeBridge(); } catch (error) { markFailure(provider, error.message); continue; } }
         await readProvider(provider);
       }
