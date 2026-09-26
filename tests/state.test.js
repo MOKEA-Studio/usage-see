@@ -32,3 +32,11 @@ test('saved state keeps only connected provider snapshots', () => {
     assert.equal(loadState(file).widgetVisible, true);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('pending CLI login survives restart and becomes connected', () => {
+  const state = normalizeState({ pendingProviders: ['codex', 'claude', 'gemini', 'codex'] });
+  assert.deepEqual(state.pendingProviders, ['codex', 'claude']);
+  setConnected(state, 'codex', true);
+  assert.deepEqual(state.pendingProviders, ['claude']);
+  assert.deepEqual(state.connectedProviders, ['codex']);
+});

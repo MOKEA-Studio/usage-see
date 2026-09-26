@@ -101,7 +101,12 @@ app.whenReady().then(() => {
     if (!connected && provider === 'claude') cli.uninstallClaudeBridge();
     if (connected && provider !== 'gemini') {
       if (!cli.executable(provider)) throw new Error(`${provider} CLI를 먼저 설치해 주세요.`);
-      if (!await cli.authenticated(provider)) { cli.beginLogin(provider); return { pendingLogin: true }; }
+      if (!await cli.authenticated(provider)) {
+        if (!state.pendingProviders.includes(provider)) state.pendingProviders.push(provider);
+        broadcast();
+        cli.beginLogin(provider);
+        return { pendingLogin: true };
+      }
       if (provider === 'claude') cli.installClaudeBridge();
     } else if (connected) await openProvider(provider);
     setConnected(state, provider, !!connected);
@@ -120,15 +125,38 @@ app.whenReady().then(() => {
   ipcMain.handle('app:show', () => { createMainWindow(); return true; });
   createMainWindow(); createTray();
   if (state.widgetVisible) setWidgetVisible(true);
-  const refreshCli = async () => {
-    for (const provider of ['codex', 'claude']) {
-      if (!state.connectedProviders.includes(provider)) continue;
-      if (!await cli.authenticated(provider)) { setConnected(state, provider, false); broadcast(); continue; }
-      if (provider === 'claude') { try { cli.installClaudeBridge(); } catch (error) { markFailure(provider, error.message); continue; } }
-      await readProvider(provider);
-    }
+  let checkingLogin = false;
+  const checkPendingLogins = async () => {
+    if (checkingLogin) return;
+    checkingLogin = true;
+    try {
+      for (const provider of [...state.pendingProviders]) {
+        if (!await cli.authenticated(provider)) continue;
+        try {
+          if (provider === 'claude') cli.installClaudeBridge();
+          setConnected(state, provider, true);
+          broadcast();
+          await readProvider(provider);
+        } catch (error) { markFailure(provider, error.message); }
+      }
+    } finally { checkingLogin = false; }
   };
+  let refreshing = false;
+  const refreshCli = async () => {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      for (const provider of ['codex', 'claude']) {
+        if (!state.connectedProviders.includes(provider)) continue;
+        if (!await cli.authenticated(provider)) { setConnected(state, provider, false); broadcast(); continue; }
+        if (provider === 'claude') { try { cli.installClaudeBridge(); } catch (error) { markFailure(provider, error.message); continue; } }
+        await readProvider(provider);
+      }
+    } finally { refreshing = false; }
+  };
+  checkPendingLogins();
   refreshCli();
+  setInterval(checkPendingLogins, 3000);
   setInterval(refreshCli, 60 * 1000);
   app.on('activate', createMainWindow);
   app.on('window-all-closed', () => {});

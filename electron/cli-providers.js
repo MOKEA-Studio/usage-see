@@ -22,16 +22,20 @@ function run(file, args, input = '', timeout = 15000) {
     child.stdout.on('data', chunk => { output += chunk; if (output.length > 200000) child.kill(); });
     child.stderr.on('data', chunk => { error += chunk; if (error.length > 10000) child.kill(); });
     child.on('error', err => { clearTimeout(timer); reject(err); });
-    child.on('close', code => { clearTimeout(timer); code === 0 ? resolve(output) : reject(new Error(error.trim().slice(0, 300) || `CLI 종료 코드 ${code}`)); });
+    child.on('close', code => { clearTimeout(timer); code === 0 ? resolve(output || error) : reject(new Error(error.trim().slice(0, 300) || `CLI 종료 코드 ${code}`)); });
     child.stdin.end(input);
   });
+}
+function loggedInOutput(provider, output) {
+  if (provider === 'codex') return /Logged in using ChatGPT/i.test(output);
+  try { return JSON.parse(output).loggedIn === true; } catch { return false; }
 }
 async function authenticated(provider) {
   const file = executable(provider);
   if (!file) return false;
   try {
     const result = await run(file, provider === 'codex' ? ['login', 'status'] : ['auth', 'status']);
-    return provider === 'codex' ? /Logged in using ChatGPT/i.test(result) : JSON.parse(result).loggedIn === true;
+    return loggedInOutput(provider, result);
   } catch { return false; }
 }
 function beginLogin(provider) {
@@ -133,4 +137,4 @@ function uninstallClaudeBridge() {
   fs.rmSync(script, { force: true });
   fs.rmSync(path.join(base, 'claude-statusline.json'), { force: true });
 }
-module.exports = { executable, authenticated, beginLogin, codexSnapshot, readCodex, installClaudeBridge, uninstallClaudeBridge, readClaude };
+module.exports = { executable, loggedInOutput, authenticated, beginLogin, codexSnapshot, readCodex, installClaudeBridge, uninstallClaudeBridge, readClaude };

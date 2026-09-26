@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { codexSnapshot } = require('../electron/cli-providers');
+const { codexSnapshot, loggedInOutput } = require('../electron/cli-providers');
 
 test('Codex official rate limits map to 5-hour and weekly windows', () => {
   const snapshot = codexSnapshot({ result: { rateLimitsByLimitId: { codex: {
@@ -29,4 +29,9 @@ test('Claude bridge preserves an existing status line and captures usage locally
     execFileSync(process.execPath, ['-e', "require('./electron/cli-providers').uninstallClaudeBridge()"], { cwd: path.join(__dirname, '..'), env: { ...process.env, HOME: home } });
     assert.equal(JSON.parse(fs.readFileSync(path.join(home, '.claude', 'settings.json'))).statusLine.command, 'cat >/dev/null; echo original');
   } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+test('Codex login status from CLI stderr is recognized', () => {
+  assert.equal(loggedInOutput('codex', 'Logged in using ChatGPT\n'), true);
+  assert.equal(loggedInOutput('codex', 'Not logged in'), false);
 });

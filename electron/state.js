@@ -2,11 +2,12 @@
 const fs = require('node:fs');
 
 const PROVIDERS = ['claude', 'gemini', 'codex'];
-function emptyState() { return { connectedProviders: [], snapshots: {}, failures: {}, widgetVisible: false }; }
+function emptyState() { return { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false }; }
 function normalizeState(value) {
   const state = emptyState();
   if (!value || typeof value !== 'object') return state;
   if (Array.isArray(value.connectedProviders)) state.connectedProviders = [...new Set(value.connectedProviders.filter(p => PROVIDERS.includes(p)))];
+  if (Array.isArray(value.pendingProviders)) state.pendingProviders = [...new Set(value.pendingProviders.filter(p => ['codex', 'claude'].includes(p) && !state.connectedProviders.includes(p)))];
   if (value.snapshots && typeof value.snapshots === 'object') {
     for (const p of state.connectedProviders) {
       const snap = value.snapshots[p];
@@ -31,6 +32,7 @@ function saveState(file, state) {
 function setConnected(state, provider, connected) {
   if (!PROVIDERS.includes(provider)) throw new Error('지원하지 않는 서비스입니다.');
   if (connected && !state.connectedProviders.includes(provider)) state.connectedProviders.push(provider);
+  state.pendingProviders = state.pendingProviders.filter(p => p !== provider);
   if (!connected) {
     state.connectedProviders = state.connectedProviders.filter(p => p !== provider);
     delete state.snapshots[provider];

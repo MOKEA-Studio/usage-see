@@ -2,7 +2,7 @@
   'use strict';
   const { info, date, dateLabel, timeLabel, stale, status, el, windowRow } = UsageSeeFormat;
   const $ = id => document.getElementById(id);
-  let state = { connectedProviders: [], snapshots: {}, failures: {}, widgetVisible: false };
+  let state = { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false };
   let view = 'dashboard';
   function notice(message) { const box = $('notice'); box.textContent = message; box.classList.remove('hidden'); }
   function hideNotice() { $('notice').classList.add('hidden'); }
@@ -40,18 +40,13 @@
       const row = el('div', 'providerSetting'); row.append(el('span', `providerLogo ${provider}`, data.logo));
       const detail = el('div', 'detail'); detail.append(el('strong', '', data.name), el('small', '', data.hint)); row.append(detail);
       const connected = state.connectedProviders.includes(provider);
-      const toggle = el('button', `toggleButton${connected ? ' connected' : ''}`, connected ? '연결 해제' : provider === 'gemini' ? '연결' : '로그인·연결'); toggle.type = 'button';
+      const pending = state.pendingProviders?.includes(provider);
+      const toggle = el('button', `toggleButton${connected ? ' connected' : ''}`, connected ? '연결 해제' : pending ? '로그인 확인 중…' : provider === 'gemini' ? '연결' : '로그인·연결'); toggle.type = 'button';
       toggle.onclick = async () => {
         try {
           const result = await window.usageSee.connect(provider, !connected);
-          if (result?.pendingLogin) {
-            notice(`${data.name} 로그인 페이지를 기본 브라우저에서 여는 중입니다. 완료하면 자동으로 연결됩니다.`);
-            for (let attempt = 0; attempt < 40; attempt++) {
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              if (await window.usageSee.authenticated(provider)) { await window.usageSee.connect(provider, true); hideNotice(); return; }
-            }
-            notice('로그인을 확인하지 못했습니다. 로그인 후 연결을 다시 눌러 주세요.');
-          } else hideNotice();
+          if (result?.pendingLogin) notice(`${data.name} 로그인을 확인 중입니다. 완료하면 자동으로 연결됩니다.`);
+          else hideNotice();
         } catch (error) { notice(error.message || '연결하지 못했습니다.'); }
       };
       const open = el('button', 'openButton', '열기 ↗'); open.type = 'button'; open.onclick = () => invoke(() => window.usageSee.openProvider(provider));
@@ -73,7 +68,11 @@
   }
   async function init() {
     state = await window.usageSee.getState();
-    window.usageSee.onState(next => { state = next; render(); });
+    window.usageSee.onState(next => {
+      const completed = state.pendingProviders?.some(p => !next.pendingProviders?.includes(p) && next.connectedProviders.includes(p));
+      state = next; render();
+      if (completed) notice('로그인이 확인되어 연결되었습니다. Claude 사용량은 Claude Code에서 메시지를 보낸 뒤 표시됩니다.');
+    });
     $('dashboardNav').onclick = () => showView('dashboard'); $('settingsNav').onclick = () => showView('settings'); $('emptySettings').onclick = () => showView('settings');
     $('widgetButton').onclick = () => invoke(() => window.usageSee.setWidgetVisible(!state.widgetVisible));
     $('clearButton').onclick = () => invoke(() => window.usageSee.clearHistory());
