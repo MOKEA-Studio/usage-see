@@ -30,6 +30,9 @@ test('saved state keeps only connected provider snapshots', () => {
     assert.deepEqual(loadState(file).connectedProviders, ['claude']);
     assert.equal(loadState(file).snapshots.gemini, undefined);
     assert.equal(loadState(file).widgetVisible, true);
+    assert.equal(loadState(file).widgetOpacity, 100);
+    state.widgetOpacity = 55; saveState(file, state);
+    assert.equal(loadState(file).widgetOpacity, 55);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

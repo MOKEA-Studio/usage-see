@@ -2,7 +2,7 @@
   'use strict';
   const { info, date, dateLabel, timeLabel, stale, status, el, windowRow } = UsageSeeFormat;
   const $ = id => document.getElementById(id);
-  let state = { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false };
+  let state = { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false, widgetOpacity: 100 };
   let view = 'dashboard';
   function notice(message) { const box = $('notice'); box.textContent = message; box.classList.remove('hidden'); }
   function hideNotice() { $('notice').classList.add('hidden'); }
@@ -35,6 +35,8 @@
     $('widgetButton').textContent = state.widgetVisible ? '위젯 숨기기' : '위젯 띄우기';
   }
   function renderSettings() {
+    $('widgetOpacity').value = String(state.widgetOpacity ?? 100);
+    $('widgetOpacityValue').textContent = `${state.widgetOpacity ?? 100}%`;
     const list = $('providers'); list.replaceChildren();
     Object.entries(info).forEach(([provider, data]) => {
       const row = el('div', 'providerSetting'); row.append(el('span', `providerLogo ${provider}`, data.logo));
@@ -75,6 +77,8 @@
     });
     $('dashboardNav').onclick = () => showView('dashboard'); $('settingsNav').onclick = () => showView('settings'); $('emptySettings').onclick = () => showView('settings');
     $('widgetButton').onclick = () => invoke(() => window.usageSee.setWidgetVisible(!state.widgetVisible));
+    $('widgetOpacity').oninput = event => { $('widgetOpacityValue').textContent = `${event.target.value}%`; };
+    $('widgetOpacity').onchange = event => invoke(() => window.usageSee.setWidgetOpacity(Number(event.target.value)));
     $('clearButton').onclick = () => invoke(() => window.usageSee.clearHistory());
     render();
   }

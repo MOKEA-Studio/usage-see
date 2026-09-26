@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('usageSee', {
   readProvider: provider => ipcRenderer.invoke('provider:read', provider),
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   setWidgetVisible: visible => ipcRenderer.invoke('widget:visible', visible),
+  setWidgetOpacity: value => ipcRenderer.invoke('widget:opacity', value),
   showApp: () => ipcRenderer.invoke('app:show'),
   onState: callback => {
     const listener = (_event, state) => callback(state);

@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 
 const PROVIDERS = ['claude', 'gemini', 'codex'];
-function emptyState() { return { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false }; }
+function emptyState() { return { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false, widgetOpacity: 100 }; }
 function normalizeState(value) {
   const state = emptyState();
   if (!value || typeof value !== 'object') return state;
@@ -18,6 +18,7 @@ function normalizeState(value) {
     for (const p of state.connectedProviders) if (value.failures[p]?.status) state.failures[p] = value.failures[p];
   }
   state.widgetVisible = value.widgetVisible === true;
+  if (Number.isFinite(value.widgetOpacity)) state.widgetOpacity = Math.max(40, Math.min(100, Math.round(value.widgetOpacity)));
   return state;
 }
 function loadState(file) {

@@ -2,6 +2,7 @@
   'use strict';
   const { info, date, dateLabel, stale, status, el, barTone } = UsageSeeFormat;
   const $ = id => document.getElementById(id);
+  const { usageSummary } = UsageSeeSummary;
   function makeRow(label, data) {
     const wrap = el('div', '');
     const row = el('div', 'row');
@@ -15,6 +16,7 @@
     return wrap;
   }
   function render(state) {
+    $('usageSummary').textContent = usageSummary(state);
     const items = $('items'); items.replaceChildren();
     $('empty').classList.toggle('hidden', state.connectedProviders.length > 0);
     const latest = state.connectedProviders.map(p => date(state.snapshots[p]?.capturedAt)?.getTime() || 0).reduce((a, b) => Math.max(a, b), 0);

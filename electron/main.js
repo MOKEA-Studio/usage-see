@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, clipboard }
 const { parseUsage } = require('../src/parser');
 const { PROVIDERS, loadState, saveState, setConnected } = require('./state');
 const cli = require('./cli-providers');
+const { usageSummary } = require('../app/summary');
 
 const URLS = {
   claude: 'https://claude.ai/settings/usage',
@@ -37,14 +38,23 @@ function setWidgetVisible(visible) {
   state.widgetVisible = !!visible;
   if (visible && (!widgetWindow || widgetWindow.isDestroyed())) {
     widgetWindow = secureLocalWindow({ title: 'Usage See Widget', width: 350, height: 420, minWidth: 310, minHeight: 300, frame: false, transparent: false, alwaysOnTop: true, skipTaskbar: true, resizable: true, backgroundColor: '#f9fbf8', show: false }, 'widget.html');
+    widgetWindow.setOpacity(state.widgetOpacity / 100);
     widgetWindow.once('ready-to-show', () => widgetWindow.show());
     widgetWindow.on('closed', () => { widgetWindow = null; if (state.widgetVisible) { state.widgetVisible = false; broadcast(); } });
   } else if (!visible && widgetWindow && !widgetWindow.isDestroyed()) widgetWindow.close();
   broadcast();
   return state;
 }
+function setWidgetOpacity(value) {
+  if (!Number.isFinite(value)) throw new Error('불투명도 값이 올바르지 않습니다.');
+  state.widgetOpacity = Math.max(40, Math.min(100, Math.round(value)));
+  if (widgetWindow && !widgetWindow.isDestroyed()) widgetWindow.setOpacity(state.widgetOpacity / 100);
+  broadcast();
+  return state;
+}
 function updateTray() {
   if (!tray) return;
+  if (process.platform === 'darwin') tray.setTitle(usageSummary(state));
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Usage See 열기', click: createMainWindow },
     { label: state.widgetVisible ? '위젯 숨기기' : '위젯 표시', click: () => setWidgetVisible(!state.widgetVisible) },
@@ -122,6 +132,7 @@ app.whenReady().then(() => {
   ipcMain.handle('provider:read', (_event, provider) => readProvider(provider));
   ipcMain.handle('history:clear', () => { state.snapshots = {}; state.failures = {}; broadcast(); return state; });
   ipcMain.handle('widget:visible', (_event, visible) => setWidgetVisible(visible));
+  ipcMain.handle('widget:opacity', (_event, value) => setWidgetOpacity(value));
   ipcMain.handle('app:show', () => { createMainWindow(); return true; });
   createMainWindow(); createTray();
   if (state.widgetVisible) setWidgetVisible(true);
