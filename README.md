@@ -30,7 +30,7 @@ npm run package:win   # x64 Windows 앱
 - Codex는 CLI의 `account/rateLimits/read`를 사용합니다. CLI 인증 정보는 앱이 읽거나 저장하지 않습니다.
 - Claude는 공식 Claude Code `statusLine`의 `rate_limits` 데이터를 사용합니다. 연결 시 `~/.claude/settings.json`에 브리지 명령을 설치하고 최근 입력을 `~/.usage-see/claude-statusline.json`에 로컬 저장합니다. 기존 상태줄 명령은 보존합니다. Claude Code가 실행되어 새 입력을 전달할 때 값이 갱신됩니다.
 - Gemini는 사용량 화면에서 복사한 텍스트만 읽습니다. 텍스트 원문은 저장하지 않습니다.
-- 사용률이 제공되지 않는 창은 임의로 0%로 채우지 않습니다. 15분이 지났거나 초기화된 값은 오래된 정보로 표시합니다.
+- 사용률이 제공되지 않는 창은 임의로 0%로 채우지 않습니다. 막대는 남은 사용량이 21~40%면 주황, 0~20%면 빨강으로 표시합니다. 15분이 지났거나 초기화된 값은 오래된 정보로 표시합니다.
 - 앱은 계정 비밀번호와 OAuth 토큰을 저장하거나 자체 서버로 전송하지 않습니다.
 
 ## 디자인 참고

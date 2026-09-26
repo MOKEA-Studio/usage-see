@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const { info, date, dateLabel, stale, status, el } = UsageSeeFormat;
+  const { info, date, dateLabel, stale, status, el, barTone } = UsageSeeFormat;
   const $ = id => document.getElementById(id);
   function makeRow(label, data) {
     const wrap = el('div', '');
@@ -9,7 +9,7 @@
     const pct = Number.isFinite(data?.usedPercent) && data.usedPercent >= 0 && data.usedPercent <= 100;
     row.append(el('strong', !pct && !data?.remainingText ? 'unknown' : '', pct ? `${data.usedPercent}% 사용` : data?.remainingText || '확인 필요'));
     wrap.append(row);
-    if (pct) { const bar = el('div', 'bar'), fill = el('div', `barFill${data.usedPercent >= 95 ? ' critical' : data.usedPercent >= 80 ? ' high' : ''}`); fill.style.width = `${data.usedPercent}%`; bar.append(fill); wrap.append(bar); }
+    if (pct) { const bar = el('div', 'bar'), fill = el('div', `barFill${barTone(data.usedPercent)}`); fill.style.width = `${data.usedPercent}%`; bar.append(fill); wrap.append(bar); }
     if (data?.resetsAt) wrap.append(el('div', 'reset', `↻ ${dateLabel(data.resetsAt)} 초기화`));
     else if (data?.resetText) wrap.append(el('div', 'reset', `↻ ${data.resetText}`));
     return wrap;

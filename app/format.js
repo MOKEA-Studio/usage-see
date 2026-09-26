@@ -21,6 +21,11 @@
     return ['정상', ''];
   }
   function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
+  function barTone(usedPercent) {
+    if (usedPercent >= 80) return ' critical'; // 남은 사용량 0~20%
+    if (usedPercent >= 60) return ' high'; // 남은 사용량 21~40%
+    return '';
+  }
   function windowRow(kind, data) {
     const box = el('div', 'window'), head = el('div', 'windowHead');
     const label = kind === 'five_hour' ? '5시간' : '1주';
@@ -30,11 +35,11 @@
     box.append(head);
     if (pct) {
       const bar = el('div', 'bar'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuenow', String(data.usedPercent)); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100');
-      const fill = el('div', `barFill${data.usedPercent >= 95 ? ' critical' : data.usedPercent >= 80 ? ' high' : ''}`); fill.style.width = `${data.usedPercent}%`; bar.append(fill); box.append(bar);
+      const fill = el('div', `barFill${barTone(data.usedPercent)}`); fill.style.width = `${data.usedPercent}%`; bar.append(fill); box.append(bar);
     }
     if (data?.resetsAt) box.append(el('div', 'reset', `↻ ${dateLabel(data.resetsAt)} 초기화`));
     else if (data?.resetText) box.append(el('div', 'reset', `↻ ${data.resetText}`));
     return box;
   }
-  root.UsageSeeFormat = { info, date, dateLabel, timeLabel, stale, status, el, windowRow };
+  root.UsageSeeFormat = { info, date, dateLabel, timeLabel, stale, status, el, barTone, windowRow };
 })(globalThis);
