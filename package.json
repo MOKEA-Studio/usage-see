@@ -1,0 +1,20 @@
+{
+  "name": "usage-see",
+  "productName": "Usage See",
+  "version": "0.2.0",
+  "description": "Local desktop dashboard and widget for personal AI subscription usage",
+  "main": "electron/main.js",
+  "author": "MOKEA Studio",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.js",
+    "package:mac": "electron-packager . 'Usage See' --platform=darwin --arch=arm64 --icon=assets/app.icns --out=dist --overwrite --asar",
+    "package:mac-intel": "electron-packager . 'Usage See' --platform=darwin --arch=x64 --icon=assets/app.icns --out=dist --overwrite --asar",
+    "package:win": "electron-packager . 'Usage See' --platform=win32 --arch=x64 --icon=assets/app.ico --out=dist --overwrite --asar"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "44.4.5"
+  }
+}
