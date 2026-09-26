@@ -15,6 +15,8 @@ npm start
 
 Gemini는 브라우저에서 사용량 화면을 복사한 뒤 **복사한 내용 읽기**를 누릅니다. 설정하지 않은 서비스는 대시보드와 위젯에서 숨깁니다. **위젯 띄우기**를 누르면 화면 위에 작은 창이 열립니다. 설정에서 위젯 불투명도를 40~100%로 조절할 수 있고, 위젯 상단과 macOS 메뉴 막대에는 연결된 Claude·Codex의 5시간 남은 비율이 표시됩니다.
 
+설정의 **API 잔액(Admin API)**에서는 Anthropic Console 조직의 Admin API 키(`sk-ant-admin01-...`)와 현재 충전 잔액(USD)을 입력하면, 공식 Cost Report API(`/v1/organizations/cost_report`)로 확인한 실제 사용액을 계속 차감해 남은 금액을 보여줍니다. Anthropic은 선불 잔액 자체를 조회하는 API를 제공하지 않으므로, 잔액은 사용자가 입력한 시작 금액을 기준으로 계산하는 근사치입니다. 이 기능은 조직 계정에서 발급하는 Admin 키가 필요하며, 개인 계정의 일반 API 키(`sk-ant-api...`)로는 사용할 수 없습니다.
+
 ## 패키징
 
 ```bash
@@ -32,6 +34,7 @@ npm run package:win   # x64 Windows 앱
 - Gemini는 사용량 화면에서 복사한 텍스트만 읽습니다. 텍스트 원문은 저장하지 않습니다.
 - 사용률이 제공되지 않는 창은 임의로 0%로 채우지 않습니다. 막대는 남은 사용량이 21~40%면 주황, 0~20%면 빨강으로 표시합니다. 15분이 지났거나 초기화된 값은 오래된 정보로 표시합니다.
 - 앱은 계정 비밀번호와 OAuth 토큰을 저장하거나 자체 서버로 전송하지 않습니다.
+- API 잔액용 Admin API 키만 예외로, 운영체제 보안 저장소(macOS 키체인 등)로 암호화해 이 기기에 저장합니다. 5분마다 Cost Report를 조회해 시작 잔액에서 누적 사용액을 차감합니다.
 
 ## 디자인 참고
 
@@ -51,3 +54,4 @@ npm test
 - [Gemini Apps 사용량 한도](https://support.google.com/gemini/answer/16275805?hl=en)
 - [Codex App Server](https://learn.chatgpt.com/docs/app-server)
 - [Claude Code 상태줄](https://code.claude.com/docs/en/statusline)
+- [Anthropic Usage & Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api)

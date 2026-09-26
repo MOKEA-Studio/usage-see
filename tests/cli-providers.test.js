@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { codexSnapshot, loggedInOutput } = require('../electron/cli-providers');
+const { codexSnapshot, loggedInOutput, executable } = require('../electron/cli-providers');
 
 test('Codex official rate limits map to 5-hour and weekly windows', () => {
   const snapshot = codexSnapshot({ result: { rateLimitsByLimitId: { codex: {
@@ -34,4 +34,22 @@ test('Claude bridge preserves an existing status line and captures usage locally
 test('Codex login status from CLI stderr is recognized', () => {
   assert.equal(loggedInOutput('codex', 'Logged in using ChatGPT\n'), true);
   assert.equal(loggedInOutput('codex', 'Not logged in'), false);
+});
+
+test('executable() never resolves to a wrapper living under the OS temp dir', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), 'usage-see-shim-'));
+  const shimFile = path.join(shimDir, 'codex');
+  fs.writeFileSync(shimFile, '#!/bin/sh\necho fake\n', { mode: 0o755 });
+  const originalPath = process.env.PATH;
+  try {
+    process.env.PATH = `${shimDir}${path.delimiter}${originalPath}`;
+    const resolved = executable('codex');
+    assert.notEqual(resolved, shimFile);
+  } finally {
+    process.env.PATH = originalPath;
+    fs.rmSync(shimDir, { recursive: true, force: true });
+  }
 });

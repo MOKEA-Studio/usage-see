@@ -2,8 +2,9 @@
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, clipboard } = require('electron');
 const { parseUsage } = require('../src/parser');
-const { PROVIDERS, loadState, saveState, setConnected } = require('./state');
+const { PROVIDERS, loadState, saveState, setConnected, configureApiBalance, clearApiBalance, applyApiBalanceReading, applyApiBalanceError } = require('./state');
 const cli = require('./cli-providers');
+const admin = require('./anthropic-admin');
 const { usageSummary } = require('../app/summary');
 
 const URLS = {
@@ -102,10 +103,51 @@ async function readProvider(provider) {
   } catch { return markFailure(provider, 'parse_error'); }
 }
 
+async function refreshApiBalance() {
+  if (!state.apiBalance.configured) return;
+  const key = admin.loadAdminKey(app.getPath('userData'));
+  if (!key) { applyApiBalanceError(state, 'Admin API 키를 찾을 수 없습니다. 다시 연결해 주세요.'); broadcast(); return; }
+  try {
+    const cents = await admin.fetchSpentCents(key, state.apiBalance.anchorAt, new Date().toISOString());
+    applyApiBalanceReading(state, cents);
+  } catch (error) { applyApiBalanceError(state, error.message || '잔액을 확인하지 못했습니다.'); }
+  broadcast();
+}
+
 app.whenReady().then(() => {
   statePath = path.join(app.getPath('userData'), 'state.json');
   state = loadState(statePath);
+  if (state.apiBalance.configured && !admin.hasAdminKey(app.getPath('userData'))) clearApiBalance(state);
   ipcMain.handle('state:get', () => state);
+  ipcMain.handle('apiBalance:setup', async (_event, adminKey, startingBalance) => {
+    const balance = Number(startingBalance);
+    if (!Number.isFinite(balance) || balance < 0) throw new Error('잔액 값을 올바르게 입력해 주세요.');
+    const trimmedKey = String(adminKey || '').trim();
+    if (!admin.isAdminKeyFormat(trimmedKey)) throw new Error('Admin API 키 형식이 아닙니다. sk-ant-admin으로 시작해야 합니다.');
+    const now = new Date();
+    await admin.fetchSpentCents(trimmedKey, new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(), now.toISOString());
+    admin.saveAdminKey(app.getPath('userData'), trimmedKey);
+    configureApiBalance(state, balance);
+    broadcast();
+    await refreshApiBalance();
+    return state;
+  });
+  ipcMain.handle('apiBalance:refresh', async () => { await refreshApiBalance(); return state; });
+  ipcMain.handle('apiBalance:reset', () => {
+    admin.deleteAdminKey(app.getPath('userData'));
+    clearApiBalance(state);
+    broadcast();
+    return state;
+  });
+  ipcMain.handle('apiBalance:updateStartingBalance', async (_event, value) => {
+    const balance = Number(value);
+    if (!Number.isFinite(balance) || balance < 0) throw new Error('잔액 값을 올바르게 입력해 주세요.');
+    if (!state.apiBalance.configured) throw new Error('먼저 API 잔액을 연결해 주세요.');
+    configureApiBalance(state, balance);
+    broadcast();
+    await refreshApiBalance();
+    return state;
+  });
   ipcMain.handle('provider:connect', async (_event, provider, connected) => {
     if (!PROVIDERS.includes(provider)) throw new Error('지원하지 않는 서비스입니다.');
     if (!connected && provider === 'claude') cli.uninstallClaudeBridge();
@@ -167,8 +209,10 @@ app.whenReady().then(() => {
   };
   checkPendingLogins();
   refreshCli();
+  refreshApiBalance();
   setInterval(checkPendingLogins, 3000);
   setInterval(refreshCli, 60 * 1000);
+  setInterval(refreshApiBalance, 5 * 60 * 1000);
   app.on('activate', createMainWindow);
   app.on('window-all-closed', () => {});
 });

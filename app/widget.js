@@ -15,8 +15,16 @@
     else if (data?.resetText) wrap.append(el('div', 'reset', `↻ ${data.resetText}`));
     return wrap;
   }
+  function renderApiBalance(state) {
+    const b = state.apiBalance || { configured: false };
+    $('apiBalanceItem').classList.toggle('hidden', !b.configured);
+    if (!b.configured) return;
+    $('apiBalanceValue').textContent = Number.isFinite(b.remaining) ? `$${b.remaining.toFixed(2)}` : '확인 중…';
+    $('apiBalanceChecked').textContent = b.error || (b.lastUpdated ? `확인 ${dateLabel(b.lastUpdated)}` : '확인 중…');
+  }
   function render(state) {
     $('usageSummary').textContent = usageSummary(state);
+    renderApiBalance(state);
     const items = $('items'); items.replaceChildren();
     $('empty').classList.toggle('hidden', state.connectedProviders.length > 0);
     const latest = state.connectedProviders.map(p => date(state.snapshots[p]?.capturedAt)?.getTime() || 0).reduce((a, b) => Math.max(a, b), 0);

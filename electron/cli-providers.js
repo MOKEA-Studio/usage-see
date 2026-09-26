@@ -4,9 +4,21 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
+function isTempDir(dir) {
+  const tmp = os.tmpdir();
+  return !!dir && (dir === tmp || dir.startsWith(tmp + path.sep));
+}
 function executable(name) {
-  const paths = (process.env.PATH || '').split(path.delimiter);
-  if (name === 'codex') paths.push('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS');
+  // Some third-party tools (e.g. computer-use automation helpers) install a
+  // wrapper script under the OS temp dir and prepend it to PATH, shadowing
+  // the real CLI. No legitimate persistent install lives in a temp dir, so
+  // those entries are never trusted here. For codex specifically, the
+  // official binary bundled inside the ChatGPT app is never added to PATH
+  // at all, so it is checked first, before any PATH entry.
+  const envPaths = (process.env.PATH || '').split(path.delimiter).filter(dir => dir && !isTempDir(dir));
+  const paths = name === 'codex'
+    ? ['/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS', ...envPaths]
+    : envPaths;
   paths.push(path.join(os.homedir(), '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin');
   for (const dir of paths) {
     const file = path.join(dir, name);

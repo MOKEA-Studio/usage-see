@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld('usageSee', {
   setWidgetVisible: visible => ipcRenderer.invoke('widget:visible', visible),
   setWidgetOpacity: value => ipcRenderer.invoke('widget:opacity', value),
   showApp: () => ipcRenderer.invoke('app:show'),
+  setupApiBalance: (adminKey, startingBalance) => ipcRenderer.invoke('apiBalance:setup', adminKey, startingBalance),
+  refreshApiBalance: () => ipcRenderer.invoke('apiBalance:refresh'),
+  resetApiBalance: () => ipcRenderer.invoke('apiBalance:reset'),
+  updateApiBalanceStart: value => ipcRenderer.invoke('apiBalance:updateStartingBalance', value),
   onState: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('state:changed', listener);

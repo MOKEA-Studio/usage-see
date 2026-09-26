@@ -2,3 +2,4 @@
 .checked{display:flex;align-items:center;gap:6px}.source{color:#348559;background:#e7f5ea;border-radius:20px;padding:2px 5px;font-weight:750}.reset{font-size:9px;color:#93a299;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .usageSummary{font-size:10px;font-weight:750;color:#d9f2df;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:195px}.drag{gap:8px}.brand{white-space:nowrap;margin-right:auto}
+#apiBalanceItem{margin-bottom:9px}#apiBalanceItem .itemHead strong{color:#2c8657}

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { emptyState, normalizeState, loadState, saveState, setConnected } = require('../electron/state');
+const { emptyState, normalizeState, loadState, saveState, setConnected, configureApiBalance, clearApiBalance, applyApiBalanceReading, applyApiBalanceError } = require('../electron/state');
 
 test('connection starts empty and disconnect removes only that service data', () => {
   const state = emptyState();
@@ -33,6 +33,38 @@ test('saved state keeps only connected provider snapshots', () => {
     assert.equal(loadState(file).widgetOpacity, 100);
     state.widgetOpacity = 55; saveState(file, state);
     assert.equal(loadState(file).widgetOpacity, 55);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('configuring api balance sets anchor and resets spend, applying a reading updates remaining', () => {
+  const state = emptyState();
+  assert.equal(state.apiBalance.configured, false);
+  configureApiBalance(state, 100);
+  assert.equal(state.apiBalance.configured, true);
+  assert.equal(state.apiBalance.remaining, 100);
+  assert.equal(state.apiBalance.spentSince, 0);
+  applyApiBalanceReading(state, 2550);
+  assert.equal(state.apiBalance.spentSince, 2550);
+  assert.equal(state.apiBalance.remaining, 74.5);
+  assert.equal(state.apiBalance.error, null);
+  applyApiBalanceError(state, '테스트 오류');
+  assert.equal(state.apiBalance.error, '테스트 오류');
+  clearApiBalance(state);
+  assert.equal(state.apiBalance.configured, false);
+  assert.equal(state.apiBalance.remaining, null);
+});
+
+test('saved state keeps a valid configured api balance and drops an invalid one', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'usage-see-'));
+  try {
+    const file = path.join(dir, 'state.json');
+    const state = normalizeState({ apiBalance: { configured: true, startingBalance: 50, anchorAt: '2026-09-01T00:00:00Z', spentSince: 100, remaining: 49, lastUpdated: '2026-09-02T00:00:00Z' } });
+    assert.equal(state.apiBalance.configured, true);
+    assert.equal(state.apiBalance.remaining, 49);
+    saveState(file, state);
+    assert.equal(loadState(file).apiBalance.startingBalance, 50);
+    const invalid = normalizeState({ apiBalance: { configured: true, startingBalance: 'oops' } });
+    assert.equal(invalid.apiBalance.configured, false);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

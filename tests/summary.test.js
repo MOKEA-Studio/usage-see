@@ -17,3 +17,13 @@ test('top bar shows configured services using fresh five-hour remaining quota', 
   assert.equal(usageSummary(state, now), '[Codex: 19%]');
   assert.equal(usageSummary(state, now + 16 * 60000), '[Codex: —]');
 });
+
+test('top bar appends API balance when configured, and omits it otherwise', () => {
+  const now = Date.parse('2026-09-26T06:00:00Z');
+  const state = { connectedProviders: [], snapshots: {}, apiBalance: { configured: true, remaining: 83.98 } };
+  assert.equal(usageSummary(state, now), '[API $83.98]');
+  state.apiBalance.configured = false;
+  assert.equal(usageSummary(state, now), '');
+  state.apiBalance = undefined;
+  assert.equal(usageSummary(state, now), '');
+});

@@ -2,7 +2,7 @@
   'use strict';
   const { info, date, dateLabel, timeLabel, stale, status, el, windowRow } = UsageSeeFormat;
   const $ = id => document.getElementById(id);
-  let state = { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false, widgetOpacity: 100 };
+  let state = { connectedProviders: [], pendingProviders: [], snapshots: {}, failures: {}, widgetVisible: false, widgetOpacity: 100, apiBalance: { configured: false } };
   let view = 'dashboard';
   function notice(message) { const box = $('notice'); box.textContent = message; box.classList.remove('hidden'); }
   function hideNotice() { $('notice').classList.add('hidden'); }
@@ -26,9 +26,32 @@
     const read = el('button', 'readButton', provider === 'gemini' ? '복사한 내용 읽기' : '새로고침'); read.type = 'button'; read.onclick = () => readProvider(provider);
     actions.append(open, read); foot.append(actions); card.append(foot); return card;
   }
+  function makeApiBalanceCard() {
+    const b = state.apiBalance;
+    const card = el('article', 'card'), top = el('div', 'cardTop'), name = el('div', 'providerName');
+    name.append(el('span', 'providerLogo apiBalance', '◔'), el('span', '', 'API 잔액'));
+    const tone = b.error ? 'error' : (!b.lastUpdated ? 'warn' : '');
+    const badgeText = b.error ? '읽기 실패' : (!b.lastUpdated ? '확인 중' : '정상');
+    top.append(name, el('span', `badge ${tone}`, badgeText)); card.append(top);
+    const remainingRow = el('div', 'window'), remainingHead = el('div', 'windowHead');
+    remainingHead.append(el('span', 'windowLabel', '남은 잔액'), el('span', 'windowValue', Number.isFinite(b.remaining) ? `$${b.remaining.toFixed(2)}` : '확인 중…'));
+    remainingRow.append(remainingHead); card.append(remainingRow);
+    const spentRow = el('div', 'window'), spentHead = el('div', 'windowHead');
+    spentHead.append(el('span', 'windowLabel', '사용액 (연결 이후)'), el('span', 'windowValue', Number.isFinite(b.spentSince) ? `$${(b.spentSince / 100).toFixed(2)}` : '—'));
+    spentRow.append(spentHead); card.append(spentRow);
+    const foot = el('div', 'cardFoot'), checked = el('span', 'checked');
+    checked.textContent = b.error || (b.lastUpdated ? `확인 ${dateLabel(b.lastUpdated)}` : '확인 중…');
+    foot.append(checked);
+    const actions = el('div', 'actions');
+    const settingsBtn = el('button', 'linkButton', '설정에서 관리'); settingsBtn.type = 'button'; settingsBtn.onclick = () => showView('settings');
+    actions.append(settingsBtn); foot.append(actions); card.append(foot);
+    return card;
+  }
   function renderDashboard() {
-    const cards = $('cards'); cards.replaceChildren(); state.connectedProviders.forEach(p => cards.append(makeCard(p)));
-    $('emptyState').classList.toggle('hidden', state.connectedProviders.length > 0);
+    const cards = $('cards'); cards.replaceChildren();
+    if (state.apiBalance?.configured) cards.append(makeApiBalanceCard());
+    state.connectedProviders.forEach(p => cards.append(makeCard(p)));
+    $('emptyState').classList.toggle('hidden', state.connectedProviders.length > 0 || !!state.apiBalance?.configured);
     $('connectedCount').textContent = String(state.connectedProviders.length);
     const latest = state.connectedProviders.map(p => date(state.snapshots[p]?.capturedAt)?.getTime() || 0).reduce((a, b) => Math.max(a, b), 0);
     $('lastChecked').textContent = latest ? timeLabel(latest) : '—';
@@ -55,7 +78,17 @@
       row.append(toggle, open); list.append(row);
     });
   }
-  function render() { renderDashboard(); renderSettings(); }
+  function renderApiBalance() {
+    const b = state.apiBalance || { configured: false };
+    $('apiBalanceSummary').textContent = b.configured && Number.isFinite(b.remaining) ? `$${b.remaining.toFixed(2)}` : '연결 안 됨';
+    $('apiBalanceSetup').classList.toggle('hidden', b.configured);
+    $('apiBalanceStatus').classList.toggle('hidden', !b.configured);
+    if (!b.configured) return;
+    $('apiBalanceRemaining').textContent = Number.isFinite(b.remaining) ? `$${b.remaining.toFixed(2)}` : '확인 중…';
+    $('apiBalanceSpent').textContent = Number.isFinite(b.spentSince) ? `$${(b.spentSince / 100).toFixed(2)}` : '—';
+    $('apiBalanceUpdated').textContent = b.error || (b.lastUpdated ? `마지막 확인 ${dateLabel(b.lastUpdated)}` : '확인 중…');
+  }
+  function render() { renderDashboard(); renderSettings(); renderApiBalance(); }
   function showView(next) {
     view = next; $('dashboardView').classList.toggle('hidden', view !== 'dashboard'); $('settingsView').classList.toggle('hidden', view !== 'settings');
     $('dashboardNav').classList.toggle('active', view === 'dashboard'); $('settingsNav').classList.toggle('active', view === 'settings');
@@ -80,6 +113,22 @@
     $('widgetOpacity').oninput = event => { $('widgetOpacityValue').textContent = `${event.target.value}%`; };
     $('widgetOpacity').onchange = event => invoke(() => window.usageSee.setWidgetOpacity(Number(event.target.value)));
     $('clearButton').onclick = () => invoke(() => window.usageSee.clearHistory());
+    $('apiBalanceSave').onclick = () => invoke(async () => {
+      const key = $('apiBalanceKey').value.trim();
+      const start = Number($('apiBalanceStart').value);
+      if (!key || !Number.isFinite(start) || start < 0) throw new Error('Admin API 키와 잔액을 올바르게 입력해 주세요.');
+      await window.usageSee.setupApiBalance(key, start);
+      $('apiBalanceKey').value = ''; $('apiBalanceStart').value = '';
+    });
+    $('apiBalanceRefresh').onclick = () => invoke(() => window.usageSee.refreshApiBalance());
+    $('apiBalanceEdit').onclick = () => $('apiBalanceEditRow').classList.toggle('hidden');
+    $('apiBalanceEditSave').onclick = () => invoke(async () => {
+      const value = Number($('apiBalanceNewStart').value);
+      if (!Number.isFinite(value) || value < 0) throw new Error('잔액 값을 올바르게 입력해 주세요.');
+      await window.usageSee.updateApiBalanceStart(value);
+      $('apiBalanceEditRow').classList.add('hidden'); $('apiBalanceNewStart').value = '';
+    });
+    $('apiBalanceDisconnect').onclick = () => invoke(() => window.usageSee.resetApiBalance());
     render();
   }
   init().catch(e => notice(e.message || '앱을 시작하지 못했습니다.'));
