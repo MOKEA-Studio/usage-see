@@ -1,9 +1,9 @@
 (function (root) {
   'use strict';
   const info = {
-    claude: { name: 'Claude', logo: '✳', hint: 'Settings → Usage' },
+    claude: { name: 'Claude', logo: '✳', hint: 'Claude Code 로그인 · 상태줄 사용량' },
     gemini: { name: 'Gemini', logo: '✦', hint: 'Settings → Usage Limits → Usage' },
-    codex: { name: 'Codex', logo: '⌘', hint: 'Settings → Usage' }
+    codex: { name: 'Codex', logo: '⌘', hint: 'Codex CLI 로그인 · 사용량' }
   };
   const MAX_AGE = 15 * 60 * 1000;
   function date(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? null : d; }
@@ -12,6 +12,7 @@
   function stale(snapshot, failure, now = Date.now()) { const d = date(snapshot?.capturedAt); return !!snapshot && (!d || now - d.getTime() > MAX_AGE || !!failure || snapshot.windows?.some(w => w.resetsAt && date(w.resetsAt)?.getTime() <= now)); }
   function status(snapshot, failure) {
     if (failure?.status === 'login_required') return ['로그인 필요', 'error'];
+    if (failure?.status === 'waiting_data') return ['데이터 대기', 'warn'];
     if (failure?.status === 'clipboard_empty') return ['복사 필요', 'warn'];
     if (failure) return ['읽기 실패', 'error'];
     if (!snapshot) return ['확인 필요', 'warn'];

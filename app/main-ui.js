@@ -18,12 +18,12 @@
     else card.append(windowRow('weekly', null));
     const foot = el('div', 'cardFoot');
     const checked = el('span', 'checked');
-    if (snapshot) checked.append(el('span', 'source', '복사한 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
+    if (snapshot) checked.append(el('span', 'source', snapshot.captureMethod === 'codex_app_server' ? 'Codex CLI' : snapshot.captureMethod === 'claude_statusline' ? 'Claude Code' : '복사한 화면'), el('span', '', `확인 ${dateLabel(snapshot.capturedAt)}${stale(snapshot, failure) ? ' · 이전 값' : ''}`));
     else checked.textContent = '아직 읽은 기록 없음';
     foot.append(checked);
     const actions = el('div', 'actions');
     const open = el('button', 'linkButton', '브라우저에서 열기 ↗'); open.type = 'button'; open.onclick = () => invoke(() => window.usageSee.openProvider(provider));
-    const read = el('button', 'readButton', '복사한 내용 읽기'); read.type = 'button'; read.onclick = () => readProvider(provider);
+    const read = el('button', 'readButton', provider === 'gemini' ? '복사한 내용 읽기' : '새로고침'); read.type = 'button'; read.onclick = () => readProvider(provider);
     actions.append(open, read); foot.append(actions); card.append(foot); return card;
   }
   function renderDashboard() {
@@ -40,8 +40,20 @@
       const row = el('div', 'providerSetting'); row.append(el('span', `providerLogo ${provider}`, data.logo));
       const detail = el('div', 'detail'); detail.append(el('strong', '', data.name), el('small', '', data.hint)); row.append(detail);
       const connected = state.connectedProviders.includes(provider);
-      const toggle = el('button', `toggleButton${connected ? ' connected' : ''}`, connected ? '연결 해제' : '연결'); toggle.type = 'button';
-      toggle.onclick = async () => { await invoke(() => window.usageSee.connect(provider, !connected)); };
+      const toggle = el('button', `toggleButton${connected ? ' connected' : ''}`, connected ? '연결 해제' : provider === 'gemini' ? '연결' : '로그인·연결'); toggle.type = 'button';
+      toggle.onclick = async () => {
+        try {
+          const result = await window.usageSee.connect(provider, !connected);
+          if (result?.pendingLogin) {
+            notice(`${data.name} 로그인 페이지를 기본 브라우저에서 여는 중입니다. 완료하면 자동으로 연결됩니다.`);
+            for (let attempt = 0; attempt < 40; attempt++) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              if (await window.usageSee.authenticated(provider)) { await window.usageSee.connect(provider, true); hideNotice(); return; }
+            }
+            notice('로그인을 확인하지 못했습니다. 로그인 후 연결을 다시 눌러 주세요.');
+          } else hideNotice();
+        } catch (error) { notice(error.message || '연결하지 못했습니다.'); }
+      };
       const open = el('button', 'openButton', '열기 ↗'); open.type = 'button'; open.onclick = () => invoke(() => window.usageSee.openProvider(provider));
       row.append(toggle, open); list.append(row);
     });
@@ -55,7 +67,7 @@
   async function readProvider(provider) {
     try {
       const result = await window.usageSee.readProvider(provider);
-      if (!result.ok) notice(result.status === 'clipboard_empty' ? '브라우저의 사용량 화면에서 텍스트를 선택해 복사한 뒤 다시 눌러 주세요.' : result.status === 'login_required' ? '브라우저에서 로그인한 뒤 사용량 영역을 복사해 주세요.' : '복사한 내용에서 사용량을 찾지 못했습니다. 해당 서비스의 사용량 영역을 다시 복사해 주세요.');
+      if (!result.ok) notice(provider !== 'gemini' ? (result.status === 'login_required' ? 'CLI 로그인이 필요합니다. 설정에서 다시 연결해 주세요.' : result.status === 'waiting_data' ? 'Claude Code에서 메시지를 한 번 보낸 뒤 다시 새로고침해 주세요.' : result.status) : result.status === 'clipboard_empty' ? '브라우저의 사용량 화면에서 텍스트를 선택해 복사한 뒤 다시 눌러 주세요.' : result.status === 'login_required' ? '브라우저에서 로그인한 뒤 사용량 영역을 복사해 주세요.' : '복사한 내용에서 사용량을 찾지 못했습니다. 해당 서비스의 사용량 영역을 다시 복사해 주세요.');
       else hideNotice();
     } catch (e) { notice(e.message || '화면을 읽지 못했습니다.'); }
   }

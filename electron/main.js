@@ -3,6 +3,7 @@ const path = require('node:path');
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, clipboard } = require('electron');
 const { parseUsage } = require('../src/parser');
 const { PROVIDERS, loadState, saveState, setConnected } = require('./state');
+const cli = require('./cli-providers');
 
 const URLS = {
   claude: 'https://claude.ai/settings/usage',
@@ -69,6 +70,14 @@ function markFailure(provider, status) {
 }
 async function readProvider(provider) {
   if (!state.connectedProviders.includes(provider)) throw new Error('서비스를 먼저 연결해 주세요.');
+  if (provider === 'codex' || provider === 'claude') {
+    if (!await cli.authenticated(provider)) return markFailure(provider, 'login_required');
+    try {
+      const snapshot = provider === 'codex' ? await cli.readCodex() : cli.readClaude();
+      state.snapshots[provider] = snapshot; delete state.failures[provider]; broadcast();
+      return { ok: true, snapshot };
+    } catch (error) { return markFailure(provider, provider === 'claude' ? 'waiting_data' : error.message || 'read_error'); }
+  }
   const text = clipboard.readText().slice(0, 100000);
   if (!text.trim()) return markFailure(provider, 'clipboard_empty');
   try {
@@ -89,17 +98,38 @@ app.whenReady().then(() => {
   ipcMain.handle('state:get', () => state);
   ipcMain.handle('provider:connect', async (_event, provider, connected) => {
     if (!PROVIDERS.includes(provider)) throw new Error('지원하지 않는 서비스입니다.');
-    if (connected) await openProvider(provider);
+    if (!connected && provider === 'claude') cli.uninstallClaudeBridge();
+    if (connected && provider !== 'gemini') {
+      if (!cli.executable(provider)) throw new Error(`${provider} CLI를 먼저 설치해 주세요.`);
+      if (!await cli.authenticated(provider)) { cli.beginLogin(provider); return { pendingLogin: true }; }
+      if (provider === 'claude') cli.installClaudeBridge();
+    } else if (connected) await openProvider(provider);
     setConnected(state, provider, !!connected);
-    broadcast(); return state;
+    broadcast();
+    if (connected && provider !== 'gemini') await readProvider(provider);
+    return state;
   });
   ipcMain.handle('provider:open', (_event, provider) => openProvider(provider));
+  ipcMain.handle('provider:auth', async (_event, provider) => {
+    if (!['codex', 'claude'].includes(provider)) throw new Error('지원하지 않는 서비스입니다.');
+    return cli.authenticated(provider);
+  });
   ipcMain.handle('provider:read', (_event, provider) => readProvider(provider));
   ipcMain.handle('history:clear', () => { state.snapshots = {}; state.failures = {}; broadcast(); return state; });
   ipcMain.handle('widget:visible', (_event, visible) => setWidgetVisible(visible));
   ipcMain.handle('app:show', () => { createMainWindow(); return true; });
   createMainWindow(); createTray();
   if (state.widgetVisible) setWidgetVisible(true);
+  const refreshCli = async () => {
+    for (const provider of ['codex', 'claude']) {
+      if (!state.connectedProviders.includes(provider)) continue;
+      if (!await cli.authenticated(provider)) { setConnected(state, provider, false); broadcast(); continue; }
+      if (provider === 'claude') { try { cli.installClaudeBridge(); } catch (error) { markFailure(provider, error.message); continue; } }
+      await readProvider(provider);
+    }
+  };
+  refreshCli();
+  setInterval(refreshCli, 60 * 1000);
   app.on('activate', createMainWindow);
   app.on('window-all-closed', () => {});
 });

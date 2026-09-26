@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('usageSee', {
   getState: () => ipcRenderer.invoke('state:get'),
   connect: (provider, connected) => ipcRenderer.invoke('provider:connect', provider, connected),
   openProvider: provider => ipcRenderer.invoke('provider:open', provider),
+  authenticated: provider => ipcRenderer.invoke('provider:auth', provider),
   readProvider: provider => ipcRenderer.invoke('provider:read', provider),
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   setWidgetVisible: visible => ipcRenderer.invoke('widget:visible', visible),
